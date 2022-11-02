@@ -660,5 +660,31 @@ namespace Jit_Tripping
             public ulong LastExceptionToRip;
             public ulong LastExceptionFromRip;
         }
+                [StructLayout(LayoutKind.Explicit)]
+        public struct LargeInteger
+        {
+            [FieldOffset(0)]
+            public int Low;
+            [FieldOffset(4)]
+            public int High;
+            [FieldOffset(0)]
+            public long QuadPart;
+
+            // use only when QuadPart canot be passed
+            public long ToInt64()
+            {
+                return ((long)this.High << 32) | (uint)this.Low;
+            }
+
+            // just for demonstration
+            public static LargeInteger FromInt64(long value)
+            {
+                return new LargeInteger
+                {
+                    Low = (int)(value),
+                    High = (int)((value >> 32))
+                };
+            }
+        }
     }
 }

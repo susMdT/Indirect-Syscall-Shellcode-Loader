@@ -52,7 +52,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>9.0</LangVersion>
     <ErrorReport>prompt</ErrorReport>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
@@ -96,4 +96,13 @@
     <None Include="app.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Choose>
+    <When Condition="'$(Platform)'=='x64'">
+      <ItemGroup>
+        <EmbeddedResource Include="sc\*.sc">
+          <Link>shellcode</Link>
+        </EmbeddedResource>
+      </ItemGroup>
+    </When>
+  </Choose>
 </Project>

@@ -1,0 +1,9 @@
+version: '3'
+services:
+  compiler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - "./Jit Tripping/:/opt/Jit Tripping/"
+    command: bash -c "msbuild Compile.proj"

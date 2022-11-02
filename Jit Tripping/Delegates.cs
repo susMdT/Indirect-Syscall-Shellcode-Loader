@@ -49,7 +49,7 @@ namespace Jit_Tripping
         public delegate uint NtWaitForSingleObject(
             IntPtr handle,
             Boolean Alertable,
-            UInt64 Timeout);
+            IntPtr time);
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         public delegate void RtlInitUnicodeString(
@@ -73,7 +73,7 @@ namespace Jit_Tripping
             IntPtr ZeroBits,
             IntPtr CommitSize,
             IntPtr SectionOffset,
-            out ulong ViewSize,
+            out IntPtr ViewSize,
             uint InheritDisposition,
             uint AllocationType,
             uint Win32Protect);

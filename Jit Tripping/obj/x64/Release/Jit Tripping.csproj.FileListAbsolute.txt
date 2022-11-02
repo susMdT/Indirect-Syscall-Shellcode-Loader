@@ -1,0 +1,7 @@
+/opt/Jit Tripping/obj/x64/Release/Jit Tripping.csproj.AssemblyReference.cache
+/opt/Jit Tripping/obj/x64/Release/Jit Tripping.csproj.CoreCompileInputs.cache
+/opt/Jit Tripping/bin/x64/Release/Jit Tripping.exe.config
+/opt/Jit Tripping/bin/x64/Release/Jit Tripping.exe
+/opt/Jit Tripping/bin/x64/Release/Jit Tripping.pdb
+/opt/Jit Tripping/obj/x64/Release/Jit Tripping.exe
+/opt/Jit Tripping/obj/x64/Release/Jit Tripping.pdb
